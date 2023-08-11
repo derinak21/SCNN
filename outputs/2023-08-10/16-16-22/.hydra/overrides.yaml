@@ -1,0 +1,2 @@
+- dataset_dir=/dataset/validate
+- n_samples=1000

@@ -3,32 +3,36 @@ from torch import nn
 import torch.optim as optim
 import pytorch_lightning as pl
 
-#Define the MLP model 
-class MLP(nn.Module):
+#Define the CNN model 
+class CNN1D(nn.Module):
     def __init__(self):
-        super(MLP, self).__init__()
+        super(CNN1D, self).__init__()
         self.layers=nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(200, 64), 
+            nn.Conv1d(in_channels=1, out_channels=32, kernel_size=3),
             nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Conv1d(in_channels=32, out_channels=64, kernel_size=3),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Flatten(),
             nn.Linear(64, 32), 
             nn.ReLU(),   
             nn.Linear(32, 1),            
             nn.Sigmoid()
 
         )
-        self.loss = nn.MSELoss()
+        self.loss = nn.BCELoss()
     def forward(self, x):
         x=x.to(torch.float32)
         return self.layers(x)
+    
 
-#Define the lightning module using MLP model
-
-class MLPModule(pl.LightningModule):
+    
+class CNN1DModule(pl.LightningModule):
     def __init__(self):
-        super(MLPModule, self).__init__()
-        self.model=MLP()
-        self.loss=nn.MSELoss()
+        super(CNN1DModule, self).__init__()
+        self.model=CNN1D()
+        self.loss=nn.BCELoss()
           
     def forward(self, x):
         return self.model(x)
@@ -54,7 +58,6 @@ class MLPModule(pl.LightningModule):
         predicted_labels = (y_hat >= 0.5).to(torch.float32)  # Convert to binary predictions
         accuracy = (predicted_labels == y).sum().item() / len(y)
         self.log('test_accuracy', accuracy, prog_bar=True)
-
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=0.05)
