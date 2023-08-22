@@ -1,8 +1,4 @@
 import os
-import json
-from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
 import os
 import torch
 import numpy as np
@@ -11,7 +7,9 @@ import soundfile as sf
 import json
 from scipy.signal import find_peaks
 import numpy as np
-import pytorch_lightning as pl
+import torch.nn as nn
+
+
 # GET THE GCC_PHAT OF SIGNALS AND THE NUMBER OF SOURCES
 # LOAD THE GCC_PHAT OF SIGNALS
 
@@ -89,44 +87,58 @@ def cross_correlation(signals, sr, plot_peaks=False, n_central_bins=64, output_p
                 continue
             # Plot correlation in the first column,
             corr = gcc_phat(signals[i], signals[j], abs=True, ifft=True, n_dft_bins=None)
-            threshold=max(corr)/1.2
-            peaks, _ = find_peaks(corr, height=threshold)
-            peak_counts += len(peaks)
+            # threshold=max(corr)/1.2
+            # peaks, _ = find_peaks(corr, height=threshold)  # You can adjust the height threshold if needed.
+            # peak_counts += len(peaks)
             plt.close('all')
     
     central_start = len(corr)//2
     trimmed_corr = corr[central_start-100:central_start+100]
     return trimmed_corr
 
+def process_folder(base_folder, output_folder):
+    os.makedirs(output_folder, exist_ok=True)
 
-#CREATE DATASET
+    for dataset_folder in os.listdir(base_folder):  # Loop through all the dataset folders
+        dataset_path = os.path.join(base_folder, dataset_folder)
+        if os.path.isdir(dataset_path):
+            print("Processing", dataset_folder)
+            sample_path_to_metadata = os.path.join(dataset_path, "metadata.json")
+            with open(sample_path_to_metadata, "r") as f:
+                metadata = json.load(f)
+            all_gcc_phat_tensors = []
+            targets=[]
+            subfolder_path = os.path.join(dataset_path, "samples").replace("\\", "/")
+            i=0
+            for file in os.listdir(subfolder_path):
+                targets.append(torch.tensor(len(metadata[i]["source_coordinates"])))
+                print(torch.tensor(len(metadata[i]["source_coordinates"])))
+                i+=1
+                file = os.path.join(subfolder_path, file).replace("\\", "/")
+                if os.path.isdir(file):
+                    gcc_phat_ = cross_correlation(file, 16000, True, 64, "")
+                    gcc_phat_tensor = torch.tensor(gcc_phat_)  # Convert to PyTorch tensor
+                    all_gcc_phat_tensors.append(gcc_phat_tensor)
+                    del gcc_phat_
+                    del gcc_phat_tensor
+                # Save the list of tensors to a .pt file
+            output_file = os.path.join(output_folder, f"{dataset_folder}.pt")
+            combined_data={"gcc_phat":all_gcc_phat_tensors,"targets":targets}
+            torch.save(combined_data, output_file)
+            print("GCC-PHAT tensors saved to", output_file)
 
-class SourceCountingDataset(Dataset):
-    def __init__(self, samples_dir):
-        self.samples_dir = samples_dir
-        self.sample_folders = sorted(os.listdir(os.path.join(samples_dir, "samples")))
-    def __len__(self):
-        
-        return len(self.sample_folders)
 
-    def __getitem__(self, index):
-        sample_path_to_metadata = os.path.join(self.samples_dir, "metadata.json")
-        with open(sample_path_to_metadata, "r") as f:
-            metadata = json.load(f)
-        num_sources = metadata[index]["n_sources"]
-        signals = os.path.join(self.samples_dir, "samples", str(index))
-        #signals = os.path.join(self.samples_dir, metadata[index]["signals_dir"])
-        gcc_phat= cross_correlation(signals, 16000, True, 64, "")
-        gcc_phat_tensor = torch.tensor(gcc_phat)  # Convert to PyTorch tensor
-        #Convert num sources to one hot encoding
-        num_sources = torch.nn.functional.one_hot(torch.tensor(num_sources), num_classes=3).float()
-        return gcc_phat_tensor, num_sources                              
-   
+import hydra
+from omegaconf import DictConfig
 
+@hydra.main(config_path="config", config_name="config")
 
-# LOAD DATASET
-class SourceCountingDataLoader(DataLoader):
-    def __init__(self, dir, batch_size=32, shuffle=False, num_workers=5):
-        dataset = SourceCountingDataset(dir)
-        super().__init__(dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True, drop_last=False, num_workers=num_workers)
-        
+def main(cfg: DictConfig):
+    process_folder(cfg.base_folder, cfg.output_folder)
+  
+if __name__ == "__main__":
+    main()
+
+    
+
+ 

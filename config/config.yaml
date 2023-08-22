@@ -1,10 +1,8 @@
-nn_model: mlp # mlp | cnn | rnn
-loss_function: BCELoss # BCELoss | MSELoss
 
+train : '/dataset/train/'  
+validate : '/dataset/validate/'  
+test : '/dataset/test/'  
 
-train_dataset_dir: '/dataset/train/'
-val_dataset_dir: '/dataset/validate/'
-test_dataset_dir: '/dataset/test/'
 batch_size: 32
-n_epochs: 5
+epochs: 5
 num_workers: 4

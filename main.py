@@ -1,34 +1,21 @@
 from datasets.dataset import SourceCountingDataLoader
 from model.mlp import MLPModule
-from model.cnn import CNN1DModule
-from model.rnn import RNNModule
 import pytorch_lightning as pl
-import torch
-from torchviz import make_dot
-import os
-if __name__ == "__main__":
+import hydra
+from omegaconf import DictConfig
 
-    # logs_directory = '/SCNN/lightning_logs/'
+@hydra.main(config_path="config", config_name="config", version_base="1.3.2")
+def main(cfg: DictConfig):
+    data_types = ["train", "validate", "test"]
+    batch_size = cfg.batch_size
+    epochs = cfg.epochs
+    num_workers = cfg.num_workers
     
-    # # Delete all files in the logs directory
-    # for filename in os.listdir(logs_directory):
-    #     file_path = os.path.join(logs_directory, filename)
-    #     try:
-    #         if os.path.isfile(file_path):
-    #             os.unlink(file_path)
-    #     except Exception as e:
-    #         print(f"Error deleting {file_path}: {e}")
+    data_loaders = {}
 
-    train = '/dataset/train/'  
-    validate = '/dataset/validate/'  
-    test = '/dataset/test/'  
-
-    batch_size = 25
-    epochs = 5
-    num_workers = 4
-    training_data = SourceCountingDataLoader(train, batch_size=batch_size, num_workers=num_workers)
-    validating_data = SourceCountingDataLoader(validate, batch_size=batch_size, num_workers=num_workers)
-    testing_data = SourceCountingDataLoader(test, batch_size=batch_size, num_workers=num_workers)
+    for data_type in data_types:
+        data_loader = SourceCountingDataLoader(getattr(cfg, data_type), batch_size=batch_size, num_workers=num_workers)
+        data_loaders[data_type] = data_loader
 
     # Train the model
     print("Data loaded")
@@ -39,17 +26,14 @@ if __name__ == "__main__":
         max_epochs=epochs,
         logger=True
     )
-    trainer.fit(mlp_model, training_data, validating_data)
-    print("Model trained")
-
-    # Visualize the MLP model architecture
-    dummy_input = torch.rand(batch_size, 200)  # Adjust input size accordingly
-    dot = make_dot(mlp_model(dummy_input), params=dict(mlp_model.named_parameters()))
-    dot.render("mlp_model", format="png")  # Save the visualization as a PNG file
-    print("Model architecture visualized")
+    
+    for data_type in data_types:
+        trainer.fit(mlp_model, data_loaders["train"], data_loaders["validate"])
+        print(f"Model trained for {data_type}")
 
     # Test the trained model
-    trainer.test(dataloaders=testing_data)
+    trainer.test(dataloaders=data_loaders["test"], ckpt_path='best')
 
 
-    
+if __name__ == "__main__":
+    main()
