@@ -113,13 +113,13 @@ class SourceCountingDataset(Dataset):
         sample_path_to_metadata = os.path.join(self.samples_dir, "metadata.json")
         with open(sample_path_to_metadata, "r") as f:
             metadata = json.load(f)
-        num_sources = metadata[index]["n_sources"]
+        num_sources = torch.tensor(metadata[index]["n_sources"])
         signals = os.path.join(self.samples_dir, "samples", str(index))
         #signals = os.path.join(self.samples_dir, metadata[index]["signals_dir"])
         gcc_phat= cross_correlation(signals, 16000, True, 64, "")
         gcc_phat_tensor = torch.tensor(gcc_phat)  # Convert to PyTorch tensor
         #Convert num sources to one hot encoding
-        num_sources = torch.nn.functional.one_hot(torch.tensor(num_sources), num_classes=3).float()
+        num_sources = torch.nn.functional.one_hot(num_sources.clone().detach(), num_classes=4).float()
         return gcc_phat_tensor, num_sources                              
    
 
