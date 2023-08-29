@@ -9,6 +9,8 @@ import hydra
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.tuner import Tuner
+
 @hydra.main(config_path="config", config_name="config", version_base="1.3.2")
 def main(cfg: DictConfig):
     data_types = ["train", "validate", "test"]
@@ -42,10 +44,11 @@ def main(cfg: DictConfig):
         max_epochs=epochs,
         logger=True,
         callbacks= [checkpoint_callback, EarlyStopping(monitor="val_loss", patience=3)], 
-        num_sanity_val_steps=0
-    )
+        num_sanity_val_steps=0,
+        gradient_clip_val=0.5
+        )
     
-  
+   
     trainer.fit(cnn_model, data_loaders["train"], data_loaders["validate"])
     print(f"Model trained")
 

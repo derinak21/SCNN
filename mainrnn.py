@@ -40,7 +40,7 @@ def main(cfg: DictConfig):
         log_every_n_steps=1,
         max_epochs=epochs,
         logger=True,
-        callbacks= [checkpoint_callback, EarlyStopping(monitor="val_loss", patience=2)], 
+        callbacks= [checkpoint_callback, EarlyStopping(monitor="val_loss", patience=3)], 
         num_sanity_val_steps=0
     )
     

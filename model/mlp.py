@@ -23,16 +23,15 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.layers=nn.Sequential(
             nn.Flatten(),
-            nn.Linear(100, 64), 
+            nn.Linear(200, 64), 
             nn.ReLU(),
             nn.Linear(64, 32), 
             nn.ReLU(), 
             nn.Linear(32, 16), 
             nn.ReLU(),  
-            nn.Linear(16, 4),
+            nn.Linear(16, 3),
             nn.Sigmoid()
         )   
-        self.loss=nn.MSELoss()
     def forward(self, x):
         x=x.to(torch.float32)
         return self.layers(x)
@@ -43,7 +42,7 @@ class MLPModule(pl.LightningModule):
     def __init__(self):
         super(MLPModule, self).__init__()
         self.model=MLP()
-        self.loss=nn.MSELoss()
+        self.loss=nn.CrossEntropyLoss()
           
     def forward(self, x):
         return self.model(x)
@@ -51,36 +50,35 @@ class MLPModule(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch 
         y_hat = self(x)
-        prediction= y_hat.sum(dim=1)
-        loss = self.loss(prediction, y.float())
+        loss = self.loss(y_hat, y.float())
         self.log('train_loss', loss, prog_bar=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        prediction= y_hat.sum(dim=1)
-        loss = self.loss(prediction, y.float())
+        loss = self.loss(y_hat, y.float())
         self.log('val_loss', loss, prog_bar=True)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        prediction= y_hat.sum(dim=1)
-        loss = self.loss(prediction, y.float())
+        loss = self.loss(y_hat, y.float())
         self.log('test_loss', loss, prog_bar=True)
 
-        # predicted_classes = torch.argmax(y_hat, dim=1)
-        # targets= torch.argmax(y, dim=1)
+        predicted_classes = torch.argmax(y_hat, dim=1)
+        targets= torch.argmax(y, dim=1)
 
-        # correct_predictions = (torch.round(prediction) == y).float()
-        # accuracy = correct_predictions.mean()
+        correct_predictions = (predicted_classes==targets).float()
+        accuracy = correct_predictions.mean()
 
-        accuracy= custom_accuracy(torch.round(prediction), y.float())
+        # accuracy= custom_accuracy(torch.round(prediction), y.float())
         self.log('test_accuracy', accuracy, prog_bar=True)
     
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=0.05)
-        return optimizer
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)  # Learning rate scheduler
+
+        return [optimizer], [scheduler]
 
 

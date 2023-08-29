@@ -114,17 +114,17 @@ def cross_correlation(data_type, signals, sr, window_size, stride, plot_peaks=Fa
                 
 
              # Plot the signals in the second column
-            axs[n_pair, 1].plot(x, signals[i], label="Signal {}".format(i), alpha=0.5)
-            axs[n_pair, 1].plot(x, signals[j], label="Signal {}".format(j), alpha=0.5)
+            # axs[n_pair, 1].plot(x, signals[i], label="Signal {}".format(i), alpha=0.5)
+            # axs[n_pair, 1].plot(x, signals[j], label="Signal {}".format(j), alpha=0.5)
 
             axs[n_pair, 0].set_title("Cross-correlation between signals {} and {}".format(i, j))
-            axs[n_pair, 1].set_title("Signals {} and {}".format(i, j))
+            # axs[n_pair, 1].set_title("Signals {} and {}".format(i, j))
             axs[n_pair, 0].set_xlabel("Time (ms)")
             axs[n_pair, 0].set_ylabel("Correlation")
-            axs[n_pair, 1].set_xlabel("Time (s)")
-            axs[n_pair, 1].set_ylabel("Amplitude")
+            # axs[n_pair, 1].set_xlabel("Time (s)")
+            # axs[n_pair, 1].set_ylabel("Amplitude")
             
-            axs[n_pair, 1].legend()
+            # axs[n_pair, 1].legend()
             
 
             n_pair += 1            
@@ -173,7 +173,7 @@ class SourceCountingDataset(Dataset):
         image_path= os.path.join("/Users/Derin Ak/Desktop/SCNN/plots/", self.data_type, f"plot_{index}.png")
         image= (plt.imread(image_path))
 
-        num_sources = torch.nn.functional.one_hot(num_sources.clone().detach(), num_classes=4).float()
+        num_sources = torch.nn.functional.one_hot(num_sources.clone().detach(), num_classes=3).float()
        
         return image, num_sources
                                       

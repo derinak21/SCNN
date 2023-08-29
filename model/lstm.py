@@ -9,9 +9,10 @@ class LSTM(nn.Module):
         self.lstm = nn.LSTM(512, 64, batch_first=True)
         self.fc1 = nn.Linear(64, 32)
         self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(32, 4)
+        self.fc2 = nn.Linear(32, 3)
         self.sg= nn.Sigmoid()
-        self.bn = nn.BatchNorm1d(4)  # Batch normalization after the linear layer
+        self.bn = nn.BatchNorm1d(3)  # Batch normalization after the linear layer
+        self.dropout = nn.Dropout(0.4)
         self.apply(lambda m: setattr(m, "dtype", torch.float32))
 
     def forward(self, x):
@@ -22,13 +23,14 @@ class LSTM(nn.Module):
         out = self.fc2(out)
         out = self.sg(out)
         out = self.bn(out)
+        out = self.dropout(out)
         return out
 
 class LSTMModule(pl.LightningModule):
     def __init__(self):
         super(LSTMModule, self).__init__()
         self.model = LSTM()
-        self.loss = nn.MSELoss()
+        self.loss = nn.CrossEntropyLoss()
 
     def forward(self, x):
         return self.model(x)
@@ -36,7 +38,6 @@ class LSTMModule(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch 
         y_hat = self(x)
-        y_hat= y_hat.sum(dim=1)
         loss = self.loss(y_hat, y.float())
         self.log('train_loss', loss, prog_bar=True)
         return loss
@@ -44,30 +45,28 @@ class LSTMModule(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        y_hat= y_hat.sum(dim=1)
         loss = self.loss(y_hat, y.float())
         self.log('val_loss', loss, prog_bar=True)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        y_hat= y_hat.sum(dim=1)
         loss = self.loss(y_hat, y.float())
         self.log('test_loss', loss, prog_bar=True)
 
-        # predicted_classes = torch.argmax(y_hat, dim=1)
-        # targets = torch.argmax(y, dim=1)
-        # correct_predictions = (y == y_hat).float()
-        # accuracy = correct_predictions.mean()
-        mae = torch.abs(y_hat - y).mean()  # Calculate Mean Absolute Error (MAE)
-        self.log('test_mae', mae, prog_bar=True)
-        accuracy= (torch.round(y_hat)==y).float().mean()
+        predicted_classes = torch.argmax(y_hat, dim=1)
+        targets = torch.argmax(y, dim=1)
+        correct_predictions = (predicted_classes == targets).float()
+        accuracy = correct_predictions.mean()
+        # mae = torch.abs(y_hat - y).mean()  # Calculate Mean Absolute Error (MAE)
+        # self.log('test_mae', mae, prog_bar=True)
+        # accuracy= (torch.round(y_hat)==y).float().mean()
         self.log('test_accuracy', accuracy, prog_bar=True)
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=0.001)
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)  # Learning rate scheduler
-        return [optimizer], [scheduler]
+        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)  # Learning rate scheduler
+        return optimizer
 
 
 # import torch

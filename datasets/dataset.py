@@ -95,7 +95,7 @@ def cross_correlation(signals, sr, plot_peaks=False, n_central_bins=64, output_p
             plt.close('all')
     
     central_start = len(corr)//2
-    trimmed_corr = corr[central_start-50:central_start+50]
+    trimmed_corr = corr[central_start-100:central_start+100]
     return trimmed_corr
 
 
@@ -119,7 +119,7 @@ class SourceCountingDataset(Dataset):
         gcc_phat= cross_correlation(signals, 16000, True, 64, "")
         gcc_phat_tensor = torch.tensor(gcc_phat)  # Convert to PyTorch tensor
         #Convert num sources to one hot encoding
-        # num_sources = torch.nn.functional.one_hot(num_sources.clone().detach(), num_classes=4).float()
+        num_sources = torch.nn.functional.one_hot(num_sources.clone().detach(), num_classes=3).float()
         return gcc_phat_tensor, num_sources                              
    
 

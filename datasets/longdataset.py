@@ -97,9 +97,9 @@ def cross_correlation(signals, sr, window_size, stride, plot_peaks=False, n_cent
                 peak_counts += len(peaks)
                 plt.close('all')
                 trimmed_corr = corr
-                trimmed_corrs.append(torch.tensor(trimmed_corr))
+                trimmed_corrs.append( torch.cat((torch.tensor(window_signals[0]), torch.tensor(window_signals[1]), torch.tensor(trimmed_corr))))
+                
     matrix=torch.stack(trimmed_corrs)
-  
     return matrix
 
 
@@ -123,7 +123,7 @@ class SourceCountingDataset(Dataset):
         num_sources = torch.tensor(metadata[index]["n_sources"])
         signals = os.path.join(self.samples_dir, "samples", str(index))
         gcc_phat= cross_correlation(signals, 16000, self.window_size, self.stride, True, 64, "")
-        num_sources = torch.nn.functional.one_hot(num_sources.clone().detach(), num_classes=3).float()
+        # num_sources = torch.nn.functional.one_hot(num_sources.clone().detach(), num_classes=4).float()
         # Generate the target tensor with shape [25, 28, 4] and fill it with num_sources
         return gcc_phat, num_sources
                                       
