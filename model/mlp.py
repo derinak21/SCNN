@@ -23,7 +23,7 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.layers=nn.Sequential(
             nn.Flatten(),
-            nn.Linear(200, 64), 
+            nn.Linear(100, 64), 
             nn.ReLU(),
             nn.Linear(64, 32), 
             nn.ReLU(), 
@@ -80,7 +80,7 @@ class MLPModule(pl.LightningModule):
         self.log('test_accuracy', accuracy, prog_bar=True)
     
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=0.005)
+        optimizer = optim.Adam(self.parameters(), lr=0.05)
         return optimizer
 
 

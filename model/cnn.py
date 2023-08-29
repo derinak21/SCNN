@@ -2,63 +2,80 @@ import torch
 from torch import nn
 import torch.optim as optim
 import pytorch_lightning as pl
+from torch.nn.utils import clip_grad_norm_
 
 #Define the CNN model 
-class CNN1D(nn.Module):
+class CNN(nn.Module):
     def __init__(self):
-        super(CNN1D, self).__init__()
-        self.layers=nn.Sequential(
-            nn.Conv1d(in_channels=1, out_channels=32, kernel_size=3),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2),
-            nn.Conv1d(in_channels=32, out_channels=64, kernel_size=3),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2),
-            nn.Flatten(),
-            nn.Linear(64, 32), 
-            nn.ReLU(),   
-            nn.Linear(32, 1),            
-            nn.Sigmoid()
-
-        )
-        self.loss = nn.BCELoss()
+        super(CNN, self).__init__()
+        self.conv1= nn.Conv2d(in_channels=4, out_channels=16, kernel_size=3, padding=1)
+        self.conv2= nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
+        self.pool= nn.MaxPool2d(kernel_size=2, stride=2)
+        self.fc1= nn.Linear(32*125*250, 128)
+        self.fc2= nn.Linear(128, 4)
+        self.dropout= nn.Dropout(p=0.4)
     def forward(self, x):
-        x=x.to(torch.float32)
-        return self.layers(x)
+        x=x.to(torch.float32)   # x.shape=[25(batch size), 500(height), 1000(width), 4(channels)]
+        x= x.permute(0, 3, 1, 2).contiguous()
+        x= self.pool(torch.relu(self.conv1(x))) # x.shape=[25, 16, 250, 500]
+        x= self.pool(torch.relu(self.conv2(x))) # x.shape=[25, 32, 125, 250]
+        x= x.view(x.size(0), -1)
+        x= torch.relu(self.fc1(x))
+        x= self.fc2(x)
+        x= self.dropout(x)
+        return x
     
-
-    
-class CNN1DModule(pl.LightningModule):
+class CNNModule(pl.LightningModule):
     def __init__(self):
-        super(CNN1DModule, self).__init__()
-        self.model=CNN1D()
-        self.loss=nn.BCELoss()
-          
+        super(CNNModule, self).__init__()
+        self.model = CNN()
+        self.loss = nn.CrossEntropyLoss()
+        self.gradient_clip_val= 1.0
     def forward(self, x):
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x, y = batch 
         y_hat = self(x)
-        loss = self.loss(y_hat, y.float()) 
+        loss = self.loss(y_hat, y)
         self.log('train_loss', loss, prog_bar=True)
         return loss
-    
+
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = self.loss(y_hat, y.float())
+        loss = self.loss(y_hat, y)
         self.log('val_loss', loss, prog_bar=True)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = self.loss(y_hat, y.float())
+        loss = self.loss(y_hat, y)
         self.log('test_loss', loss, prog_bar=True)
-        predicted_labels = (y_hat >= 0.5).to(torch.float32)  # Convert to binary predictions
-        accuracy = (predicted_labels == y).sum().item() / len(y)
+
+        predicted_classes = torch.argmax(y_hat, dim=1)
+        targets = torch.argmax(y, dim=1)
+        correct_predictions = (predicted_classes == targets).float()
+        accuracy = correct_predictions.mean()
         self.log('test_accuracy', accuracy, prog_bar=True)
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=0.05)
-        return optimizer
+        optimizer = optim.Adam(self.parameters(), lr=0.005, weight_decay=0.0001)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)  # Learning rate scheduler
+        return [optimizer], [scheduler]
+    
+    # def optimizer_step(self, current_epoch, batch_nb, optimizer, optimizer_idx, second_order_closure=None):
+    #     # Learning rate warm-up
+    #     if self.trainer.global_step < 500:
+    #         lr_scale = min(1., float(self.trainer.global_step + 1) / 500.)
+    #         for pg in optimizer.param_groups:
+    #             pg['lr'] = lr_scale * 0.001
+
+    #     # Gradient clipping
+    #     if self.trainer.gradient_clip_val:
+    #         clip_grad_norm_(self.parameters(), self.trainer.gradient_clip_val)
+    #         # Execute the optimizer_closure
+    #     optimizer_closure = self.optimizer_closure()  # Make sure this is defined and executed
+    #     optimizer_closure()
+    #     optimizer.step()
+    #     optimizer.zero_grad()

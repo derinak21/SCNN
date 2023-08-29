@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import hydra
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
-
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 @hydra.main(config_path="config", config_name="config", version_base="1.3.2")
 def main(cfg: DictConfig):
     data_types = ["train", "validate", "test"]
@@ -31,13 +31,13 @@ def main(cfg: DictConfig):
     # Train the model
     print("Data loaded")
 
-    mlp_model = MultiClassifictionModule(4, 200, 64)
+    mlp_model = MLPModule()
 
     trainer = pl.Trainer(
         log_every_n_steps=1,
         max_epochs=epochs,
         logger=True,
-        callbacks= [checkpoint_callback], 
+        callbacks= [checkpoint_callback, EarlyStopping(monitor="val_loss", patience=3)], 
         num_sanity_val_steps=0
     )
     

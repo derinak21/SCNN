@@ -2,12 +2,11 @@ import torch
 from torch import nn
 import torch.optim as optim
 import pytorch_lightning as pl
-from sklearn import precision_score, recall_score, f1_score
 # Define the RNN model
 class RNN(nn.Module):
     def __init__(self):
         super(RNN, self).__init__()
-        self.rnn = nn.RNN(input_size=200, hidden_size=64, batch_first=True)
+        self.rnn = nn.RNN(512, 64, batch_first=True)
         self.fc1 = nn.Linear(64, 16)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(16, 4)
@@ -57,14 +56,6 @@ class RNNModule(pl.LightningModule):
         predicted_classes = torch.argmax(y_hat, dim=1)
         targets= torch.argmax(y, dim=1)
 
-        precision= precision_score(targets, predicted_classes, average='weighted')
-        recall = recall_score(targets, predicted_classes, average='weighted')
-        f1 = f1_score(targets, predicted_classes, average='weighted')
-
-        self.log('test_precision', precision, prog_bar=True)
-        self.log('test_recall', recall, prog_bar=True)
-        self.log('test_f1', f1, prog_bar=True)
-        
         correct_predictions = (predicted_classes == targets).float()
         accuracy = correct_predictions.mean()
         self.log('test_accuracy', accuracy, prog_bar=True)

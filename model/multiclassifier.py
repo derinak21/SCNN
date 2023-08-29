@@ -13,16 +13,26 @@ def custom_accuracy(predictions, targets):
     mean_accuracy = torch.mean(accuracy)
     return mean_accuracy
 
+
+
 class BinaryClassifierMLP(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(BinaryClassifierMLP, self).__init__()
-        self.fc1=nn.Linear(input_size, hidden_size)
-        self.fc2=nn.Linear(hidden_size, 1)
+        self.layers=nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(200, 64), 
+            nn.ReLU(),
+            nn.Linear(64, 32), 
+            nn.ReLU(), 
+            nn.Linear(32, 16), 
+            nn.ReLU(),
+            nn.Linear(16, 1),
+            nn.Sigmoid()
+        )  
           
     def forward(self, x):
         x=x.to(torch.float32)
-        x=F.relu(self.fc1(x))
-        return torch.sigmoid(self.fc2(x))
+        return self.layers(x)
 
 class MultiClassifierMLP(nn.Module):
     def __init__(self, num_iterations, input_size, hidden_size):
@@ -44,7 +54,7 @@ class MultiClassifictionModule(pl.LightningModule):
         self.automatic_optimization = False
     
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=0.005)
+        optimizer = optim.Adam(self.parameters(), lr=0.05)
         return optimizer
     
     def forward(self, x, current_iteration):
@@ -58,8 +68,9 @@ class MultiClassifictionModule(pl.LightningModule):
         for current_iteration in range(4):
             output = self(x, current_iteration)
             masked_output = output * (1 - mask) 
+            y= y_one_hot[:, current_iteration].view(-1, 1)
             mask = ((output == 0) | (output >= 0.5)).float()
-            loss = self.loss(masked_output, y_one_hot[:, current_iteration].view(-1, 1))
+            loss = self.loss(masked_output, y)
             total_loss += loss * (current_iteration+1) * 0.1
             self.log('batch_loss', loss, prog_bar=True) 
             self.manual_backward(loss)
@@ -77,8 +88,9 @@ class MultiClassifictionModule(pl.LightningModule):
         for current_iteration in range(4):
             output = self(x, current_iteration)
             masked_output = output * (1 - mask) 
+            y= y_one_hot[:, current_iteration].view(-1, 1)
             mask = ((output == 0) | (output >= 0.5)).float()
-            loss = self.loss(masked_output, y_one_hot[:, current_iteration].view(-1, 1))
+            loss = self.loss(masked_output, y)
             total_loss += loss * (current_iteration+1) * 0.1
             self.log('batch_loss', loss, prog_bar=True) 
         self.log('val_loss', total_loss, prog_bar=True) 
@@ -87,16 +99,23 @@ class MultiClassifictionModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y_one_hot = batch 
         total_loss = 0
-        mask = torch.zeros(len(batch[0]), 1).float()   
+        mask = torch.zeros(len(batch[0]), 1).float()
+        outputs=[]
         for current_iteration in range(4):
             output = self(x, current_iteration)
             masked_output = output * (1 - mask) 
+            y= y_one_hot[:, current_iteration].view(-1, 1)
             mask = ((output == 0) | (output >= 0.5)).float()
-            loss = self.loss(masked_output, y_one_hot[:, current_iteration].view(-1, 1))
+            loss = self.loss(masked_output, y)
             total_loss += loss * (current_iteration+1) * 0.1
-            self.log('batch_loss', loss, prog_bar=True) 
+            self.log('test_batch_loss', loss, prog_bar=True) 
+            outputs.append(masked_output)
+        matrix=torch.stack(outputs)
+        predictions=torch.max(matrix, dim=0)
 
-        self.log('val_loss', total_loss, prog_bar=True) 
+        accuracy= (torch.max(y_one_hot, dim=1).indices==predictions.indices).float().mean()
+        self.log('test_loss', total_loss, prog_bar=True) 
+        self.log('test_accuracy', accuracy, prog_bar=True)
         
   
 

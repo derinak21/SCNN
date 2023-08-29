@@ -1,9 +1,12 @@
 
-train : '/datasett/train/'  
-validate : '/datasett/validate/'  
-test : '/datasett/test/'  
+train : '/finaldataset/train/'  
+validate : '/finaldataset/validate/'  
+test : '/finaldataset/test/'  
 
-batch_size: 32
-epochs: 5
+batch_size: 25
+epochs: 15
 num_workers: 4
 repeat: 4
+learning_rate: 0.001
+window_size: 1024
+stride: 512
