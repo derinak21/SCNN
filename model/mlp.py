@@ -23,14 +23,15 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.layers=nn.Sequential(
             nn.Flatten(),
-            nn.Linear(200, 64), 
+            nn.Linear(8000, 64), 
             nn.ReLU(),
             nn.Linear(64, 32), 
             nn.ReLU(), 
             nn.Linear(32, 16), 
             nn.ReLU(),  
             nn.Linear(16, 3),
-            nn.Sigmoid()
+            nn.Sigmoid(),
+            nn.Dropout(0.4)
         )   
     def forward(self, x):
         x=x.to(torch.float32)
@@ -76,9 +77,8 @@ class MLPModule(pl.LightningModule):
         self.log('test_accuracy', accuracy, prog_bar=True)
     
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=0.05)
+        optimizer = optim.Adam(self.parameters(), lr=0.005)
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)  # Learning rate scheduler
-
         return [optimizer], [scheduler]
 
 

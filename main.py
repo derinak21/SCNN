@@ -38,7 +38,9 @@ def main(cfg: DictConfig):
         max_epochs=epochs,
         logger=True,
         callbacks= [checkpoint_callback, EarlyStopping(monitor="val_loss", patience=3)], 
-        num_sanity_val_steps=0
+        num_sanity_val_steps=0,
+        gradient_clip_val=0.5,
+        accumulate_grad_batches=1
     )
     
   

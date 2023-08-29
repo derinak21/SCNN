@@ -93,9 +93,8 @@ def cross_correlation(signals, sr, plot_peaks=False, n_central_bins=64, output_p
             peaks, _ = find_peaks(corr, height=threshold)
             peak_counts += len(peaks)
             plt.close('all')
-    
     central_start = len(corr)//2
-    trimmed_corr = corr[central_start-100:central_start+100]
+    trimmed_corr = corr[central_start-4000:central_start+4000]
     return trimmed_corr
 
 
