@@ -26,9 +26,9 @@ def main(cfg: DictConfig):
     checkpoint_callback= ModelCheckpoint(
         dirpath="/Checkpoint",
         filename="weights={epoch:02d}-{val_loss:.2f}",
-        monitor="val_loss", 
+        monitor="val_accuracy", 
         save_top_k=1, 
-        mode="min",
+        mode="max",
         verbose=True
         )
     # Train the model
@@ -40,7 +40,7 @@ def main(cfg: DictConfig):
         log_every_n_steps=1,
         max_epochs=epochs,
         logger=True,
-        callbacks= [checkpoint_callback, EarlyStopping(monitor="val_loss", patience=3)], 
+        callbacks= [checkpoint_callback, EarlyStopping(monitor="val_loss", patience=10)], 
         num_sanity_val_steps=0
     )
     

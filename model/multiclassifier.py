@@ -101,7 +101,7 @@ class MultiClassifictionModule(pl.LightningModule):
         total_loss = 0
         mask = torch.zeros(len(batch[0]), 1).float()
         outputs=[]
-        for current_iteration in range(4):
+        for current_iteration in range(2):
             output = self(x, current_iteration)
             masked_output = output * (1 - mask) 
             y= y_one_hot[:, current_iteration].view(-1, 1)

@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader
 import os
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
 import soundfile as sf
 import json
 from scipy.signal import find_peaks
@@ -92,9 +91,8 @@ def cross_correlation(signals, sr, plot_peaks=False, n_central_bins=64, output_p
             threshold=max(corr)/1.2
             peaks, _ = find_peaks(corr, height=threshold)
             peak_counts += len(peaks)
-            plt.close('all')
     central_start = len(corr)//2
-    trimmed_corr = corr[central_start-4000:central_start+4000]
+    trimmed_corr = corr[central_start-200:central_start+200]
     return trimmed_corr
 
 
@@ -104,28 +102,29 @@ class SourceCountingDataset(Dataset):
     def __init__(self, samples_dir):
         self.samples_dir = samples_dir
         self.sample_folders = sorted(os.listdir(os.path.join(samples_dir, "samples")))
+        
+        sample_path_to_metadata = os.path.join(self.samples_dir, "metadata.json")
+        with open(sample_path_to_metadata, "r") as f:
+            self.metadata = json.load(f)
     def __len__(self):
         
         return len(self.sample_folders)
 
     def __getitem__(self, index):
-        sample_path_to_metadata = os.path.join(self.samples_dir, "metadata.json")
-        with open(sample_path_to_metadata, "r") as f:
-            metadata = json.load(f)
-        num_sources = torch.tensor(metadata[index]["n_sources"])
+        num_sources = torch.tensor(self.metadata[index]["n_sources"])
         signals = os.path.join(self.samples_dir, "samples", str(index))
         #signals = os.path.join(self.samples_dir, metadata[index]["signals_dir"])
         gcc_phat= cross_correlation(signals, 16000, True, 64, "")
         gcc_phat_tensor = torch.tensor(gcc_phat)  # Convert to PyTorch tensor
         #Convert num sources to one hot encoding
         num_sources = torch.nn.functional.one_hot(num_sources.clone().detach(), num_classes=3).float()
-        return gcc_phat_tensor, num_sources                              
+        return gcc_phat_tensor, num_sources
    
 
 
 # LOAD DATASET
 class SourceCountingDataLoader(DataLoader):
-    def __init__(self, dir, batch_size=32, shuffle=False, num_workers=5):
+    def __init__(self, dir, batch_size=32, shuffle=True, num_workers=5):
         dataset = SourceCountingDataset(dir)
         super().__init__(dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True, drop_last=False, num_workers=num_workers)
         

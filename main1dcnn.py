@@ -1,18 +1,22 @@
-from datasets.dataset import SourceCountingDataLoader
+from datasets.cnndataset import SourceCountingDataLoader
 from model.mlp import MLPModule
+from model.rnn import RNNModule
+from model.cnn1d import CNNModule
+from model.lstm import LSTMModule
 from model.multiclassifier import MultiClassifictionModule
 import pytorch_lightning as pl
 import hydra
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.tuner import Tuner
+
 @hydra.main(config_path="config", config_name="config", version_base="1.3.2")
 def main(cfg: DictConfig):
     data_types = ["train", "validate", "test"]
     batch_size = cfg.batch_size
-    epochs = cfg.epochs
+    epochs = 1
     num_workers = cfg.num_workers
-    repeat= cfg.repeat
     data_loaders = {}
 
     for data_type in data_types:
@@ -22,28 +26,28 @@ def main(cfg: DictConfig):
     #save the best model with lowest validation loss
     checkpoint_callback= ModelCheckpoint(
         dirpath="/Checkpoint",
-        filename="weights={epoch:02d}-{val_accuracy:.2f}",
-        monitor="val_accuracy", 
+        filename="weights={epoch:02d}-{val_loss:.2f}",
+        monitor="val_loss", 
         save_top_k=1, 
-        mode="max",
+        mode="min",
         verbose=True
         )
     # Train the model
     print("Data loaded")
 
-    mlp_model = MLPModule()
+    cnn_model = CNNModule()
 
     trainer = pl.Trainer(
         log_every_n_steps=1,
         max_epochs=epochs,
         logger=True,
-        callbacks= [checkpoint_callback], 
+        callbacks= [checkpoint_callback, EarlyStopping(monitor="val_loss", patience=3)], 
         num_sanity_val_steps=0,
-        accumulate_grad_batches=1
-    )
+        gradient_clip_val=0.5
+        )
     
-  
-    trainer.fit(mlp_model, data_loaders["train"], data_loaders["validate"])
+   
+    trainer.fit(cnn_model, data_loaders["train"], data_loaders["validate"])
     print(f"Model trained")
 
     # Test the trained model

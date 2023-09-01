@@ -5,21 +5,20 @@ import pytorch_lightning as pl
 from torch.nn.utils import clip_grad_norm_
 
 #Define the CNN model 
-class CNN(nn.Module):
+class CNN1D(nn.Module):
     def __init__(self):
-        super(CNN, self).__init__()
-        self.conv1= nn.Conv2d(in_channels=4, out_channels=16, kernel_size=3, padding=1)
-        self.conv2= nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
-        self.pool= nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1= nn.Linear(32*125*250, 128)
+        super(CNN1D, self).__init__()
+        self.conv1= nn.Conv1d(in_channels=2, out_channels=16, kernel_size=3, padding=1)
+        self.pool= nn.MaxPool1d(kernel_size=2)
+        self.conv2= nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
+        self.fc1= nn.Linear(1600, 128)
         self.fc2= nn.Linear(128, 3)
         self.dropout= nn.Dropout(p=0.4)
     def forward(self, x):
-        x=x.to(torch.float32)   # x.shape=[25(batch size), 500(height), 1000(width), 4(channels)]
-        x= x.permute(0, 3, 1, 2).contiguous()
-        x= self.pool(torch.relu(self.conv1(x))) # x.shape=[25, 16, 250, 500]
-        x= self.pool(torch.relu(self.conv2(x))) # x.shape=[25, 32, 125, 250]
-        x= x.view(x.size(0), -1)
+        x=x.to(torch.float32) 
+        x= self.pool(torch.relu(self.conv1(x))) 
+        x= self.pool(torch.relu(self.conv2(x))) 
+        x= x.view(x.shape[0], x.shape[1]*x.shape[2])
         x= torch.relu(self.fc1(x))
         x= self.fc2(x)
         x= self.dropout(x)
@@ -28,8 +27,8 @@ class CNN(nn.Module):
 class CNNModule(pl.LightningModule):
     def __init__(self):
         super(CNNModule, self).__init__()
-        self.model = CNN()
-        self.loss = nn.CrossEntropyLoss()
+        self.model = CNN1D()
+        self.loss = nn.BCELoss()
         self.gradient_clip_val= 1.0
         self.learning_rate=0.001
     def forward(self, x):
@@ -61,7 +60,7 @@ class CNNModule(pl.LightningModule):
         self.log('test_accuracy', accuracy, prog_bar=True)
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=(self.learning_rate or self.lr))
+        optimizer = optim.Adam(self.parameters(), lr=0.005)
         
         # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)  # Learning rate scheduler
         return optimizer

@@ -10,27 +10,27 @@ class LSTM(nn.Module):
         self.fc1 = nn.Linear(64, 32)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(32, 3)
-        self.sg= nn.Sigmoid()
-        self.bn = nn.BatchNorm1d(3)  # Batch normalization after the linear layer
-        self.dropout = nn.Dropout(0.4)
+        self.st= nn.Softmax()
+        # self.bn = nn.BatchNorm1d(3)  # Batch normalization after the linear layer
+        # self.dropout = nn.Dropout(0.4)
         self.apply(lambda m: setattr(m, "dtype", torch.float32))
 
     def forward(self, x):
         x = x.to(torch.float32)
         out, _ = self.lstm(x)
-        out = self.fc1(out[:, -1, :])  # Take the last time step's output
+        out = self.fc1(torch.mean(out, dim=1))   # Take the last time step's output
         out = self.relu(out)
         out = self.fc2(out)
-        out = self.sg(out)
-        out = self.bn(out)
-        out = self.dropout(out)
+        out = self.st(out)
+        # out = self.bn(out)
+        # out = self.dropout(out)
         return out
 
 class LSTMModule(pl.LightningModule):
     def __init__(self):
         super(LSTMModule, self).__init__()
         self.model = LSTM()
-        self.loss = nn.CrossEntropyLoss()
+        self.loss = nn.BCELoss()
 
     def forward(self, x):
         return self.model(x)
@@ -47,6 +47,12 @@ class LSTMModule(pl.LightningModule):
         y_hat = self(x)
         loss = self.loss(y_hat, y.float())
         self.log('val_loss', loss, prog_bar=True)
+        predicted_classes = torch.argmax(y_hat, dim=1)
+        targets = torch.argmax(y, dim=1)
+        correct_predictions = (predicted_classes == targets).float()
+        accuracy = correct_predictions.mean()
+        
+        self.log('val_accuracy', accuracy, prog_bar=True)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -58,9 +64,7 @@ class LSTMModule(pl.LightningModule):
         targets = torch.argmax(y, dim=1)
         correct_predictions = (predicted_classes == targets).float()
         accuracy = correct_predictions.mean()
-        # mae = torch.abs(y_hat - y).mean()  # Calculate Mean Absolute Error (MAE)
-        # self.log('test_mae', mae, prog_bar=True)
-        # accuracy= (torch.round(y_hat)==y).float().mean()
+        
         self.log('test_accuracy', accuracy, prog_bar=True)
 
     def configure_optimizers(self):

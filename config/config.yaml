@@ -1,11 +1,11 @@
 
-train : '/finaldatasetalt2/train/'  
-validate : '/finaldatasetalt2/validate/'  
-test : '/finaldatasetalt2/test/'  
+train : '/finaldataset3s/trainb/'  
+validate : '/finaldataset3s/validate/'  
+test : '/finaldataset3s/test/'  
 
 batch_size: 32
-epochs: 10
-num_workers: 4
+epochs: 100
+num_workers: 0
 repeat: 4
 learning_rate: 0.001
 window_size: 1024

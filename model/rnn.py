@@ -29,7 +29,7 @@ class RNNModule(pl.LightningModule):
     def __init__(self):
         super(RNNModule, self).__init__()
         self.model=RNN()
-        self.loss=nn.CrossEntropyLoss()
+        self.loss=nn.BCELoss()
           
     def forward(self, x):
         return self.model(x)
@@ -46,7 +46,13 @@ class RNNModule(pl.LightningModule):
         y_hat = self(x)
         loss = self.loss(y_hat, y.float())
         self.log('val_loss', loss, prog_bar=True)
+        predicted_classes = torch.argmax(y_hat, dim=1)
+        targets= torch.argmax(y, dim=1)
 
+        correct_predictions = (predicted_classes == targets).float()
+        accuracy = correct_predictions.mean()
+        self.log('val_accuracy', accuracy, prog_bar=True)
+        
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)

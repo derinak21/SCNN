@@ -23,7 +23,7 @@ def main(cfg: DictConfig):
     # Train the model
     print("Data loaded")
     results= [-1]*1000
-    for i in range(3):
+    for i in range(2):
         checkpoint_callback= ModelCheckpoint(
             dirpath=f"/Checkpoint/{i}",
             filename="weights={epoch:02d}-{val_loss:.2f}",
@@ -53,8 +53,8 @@ def main(cfg: DictConfig):
         for j, test_pred in enumerate(pred):
             if test_pred<0.5 and results[j]==-1:
                 results[j]=i
-            if i==3 and results[j]==-1:
-                results[j]=3
+            if i==2 and results[j]==-1:
+                results[j]=2
         
     targets=[]
     for a in range(1000):
