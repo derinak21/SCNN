@@ -11,7 +11,7 @@ class Classifier(nn.Module):
         super(Classifier, self).__init__()
         self.layers=nn.Sequential(
             nn.Flatten(),
-            nn.Linear(200, 64), 
+            nn.Linear(400, 64), 
             nn.ReLU(),
             nn.Linear(64, 32), 
             nn.ReLU(), 

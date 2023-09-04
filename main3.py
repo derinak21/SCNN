@@ -53,7 +53,7 @@ def main(cfg: DictConfig):
         for j, test_pred in enumerate(pred):
             if test_pred<0.5 and results[j]==-1:
                 results[j]=i
-            if i==2 and results[j]==-1:
+            elif i==2 and results[j]==-1:
                 results[j]=2
         
     targets=[]

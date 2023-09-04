@@ -1,7 +1,7 @@
 
-train : '/finaldataset3s/trainb/'  
-validate : '/finaldataset3s/validate/'  
-test : '/finaldataset3s/test/'  
+train : 'data/train/'  
+validate : 'data/validate/'  
+test : 'data/test/'  
 
 batch_size: 32
 epochs: 100
@@ -10,3 +10,5 @@ repeat: 4
 learning_rate: 0.001
 window_size: 1024
 stride: 512
+
+checkpoint_path: '/Checkpoint/80%accuracy.ckpt'

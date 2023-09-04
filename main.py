@@ -21,11 +21,11 @@ def main(cfg: DictConfig):
 
     #save the best model with lowest validation loss
     checkpoint_callback= ModelCheckpoint(
-        dirpath="/Checkpoint",
-        filename="weights={epoch:02d}-{val_accuracy:.2f}",
-        monitor="val_accuracy", 
+        dirpath="Checkpoint",
+        filename="weights={epoch:02d}-{val_loss:.2f}",
+        monitor="val_loss", 
         save_top_k=1, 
-        mode="max",
+        mode="min",
         verbose=True
         )
     # Train the model

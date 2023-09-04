@@ -1,98 +1,70 @@
 import pyaudio
-import os
-import struct
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.fftpack import fft
-import time
-from tkinter import TclError
+import wave
 
-# use this backend to display in separate Tk window
+chunk = 1024  # Record in chunks of 1024 samples
+sample_format = pyaudio.paInt16  # 16 bits per sample
+channels = 1  # Use 1 channel per microphone
+fs = 44100  # Record at 44100 samples per second
+seconds = 5
 
-# constants
-CHUNK = 1024 * 2             # samples per frame
-FORMAT = pyaudio.paInt16     # audio format (bytes per sample?)
-CHANNELS = 1                 # single channel for microphone
-RATE = 44100                 # samples per second
+# Define filenames for the two recordings
+filename_mic0 = "output_mic0.wav"
+filename_mic1 = "output_mic1.wav"
 
-# create matplotlib figure and axes
-fig, ax = plt.subplots(1, figsize=(15, 7))
+p = pyaudio.PyAudio()  # Create an interface to PortAudio
+for i in range(p.get_device_count()):
+    info = p.get_device_info_by_index(i)
+    print(f"Device {i}: {info['name']}")
+print('Recording')
 
-# pyaudio class instance
-p = pyaudio.PyAudio()
+# Stream for microphone with index 0
+stream0 = p.open(format=sample_format,
+                channels=channels,
+                rate=fs,
+                frames_per_buffer=chunk,
+                input=True,
+                input_device_index=0)
 
+# Stream for microphone with index 1
+stream1 = p.open(format=sample_format,
+                channels=channels,
+                rate=fs,
+                frames_per_buffer=chunk,
+                input=True,
+                input_device_index=1)
 
-# stream object to get data from microphone
-stream = p.open(
-    format=FORMAT,
-    channels=CHANNELS,
-    rate=RATE,
-    input=True,
-    output=True,
-    frames_per_buffer=CHUNK,
-    input_device_index=1
-    )
+frames0 = []  # Initialize array to store frames for mic 0
+frames1 = []  # Initialize array to store frames for mic 1
 
+# Store data in chunks for the specified duration
+for i in range(0, int(fs / chunk * seconds)):
+    data0 = stream0.read(chunk)  # Read from mic 0
+    data1 = stream1.read(chunk)  # Read from mic 1
+    frames0.append(data0)
+    frames1.append(data1)
 
-stream2 = p.open(
-    format=FORMAT,
-    channels=CHANNELS,
-    rate=RATE,
-    input=True,
-    output=True,
-    frames_per_buffer=CHUNK,
-    input_device_index=2
-    )
+# Stop and close the streams
+stream0.stop_stream()
+stream0.close()
+stream1.stop_stream()
+stream1.close()
 
-# variable for plotting
-x = np.arange(0, 2 * CHUNK, 2)
+# Terminate the PortAudio interface
+p.terminate()
 
-# create a line object with random data
-line, = ax.plot(x, np.random.rand(CHUNK), '-', lw=2)
+print('Finished recording')
 
-# basic formatting for the axes
-ax.set_title('AUDIO WAVEFORM')
-ax.set_xlabel('samples')
-ax.set_ylabel('volume')
-ax.set_ylim(-1000, 1000)
-ax.set_xlim(0, 2 * CHUNK)
+# Save the recorded data as WAV files for each microphone
+wf0 = wave.open(filename_mic0, 'wb')
+wf0.setnchannels(channels)
+wf0.setsampwidth(p.get_sample_size(sample_format))
+wf0.setframerate(fs)
+wf0.writeframes(b''.join(frames0))
+wf0.close()
 
-
-# show the plot
-plt.show(block=False)
-
-print('stream started')
-
-# for measuring frame rate
-frame_count = 0
-start_time = time.time()
-
-while True:
-    
-    # binary data
-    data = stream.read(CHUNK)  
-    
-    # convert data to integers, make np array, then offset it by 127
-    data_int = struct.unpack(str(2 * CHUNK) + 'B', data)
-    
-    # create np array and offset by 128
-    data_np = np.array(data_int, dtype='b')[::2] 
-    
-    line.set_ydata(data_np)
-    
-    # update figure canvas
-    try:
-        fig.canvas.draw()
-        fig.canvas.flush_events()
-        frame_count += 1
-        
-    except TclError or KeyboardInterrupt:
-        
-        # calculate average frame rate
-        frame_rate = frame_count / (time.time() - start_time)
-
-        print('stream stopped')
-        print('average frame rate = {:.0f} FPS'.format(frame_rate))
-        break
-
-
+wf1 = wave.open(filename_mic1, 'wb')
+wf1.setnchannels(channels)
+wf1.setsampwidth(p.get_sample_size(sample_format))
+wf1.setframerate(fs)
+wf1.writeframes(b''.join(frames1))
+wf1.close()
