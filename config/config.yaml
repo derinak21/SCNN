@@ -1,14 +1,29 @@
+train : '/datasets/dataset/train/'  
+validate : '/datasets/dataset/validate/'  
+test : '/datasets/dataset/test/'  
+recorded: 'recording/recording.wav'
+model: "cnn1d"  #  mlp | lstm | cnn1d | cnn2d
 
-train : 'data/train/'  
-validate : 'data/validate/'  
-test : 'data/test/'  
 
-batch_size: 32
-epochs: 100
-num_workers: 0
-repeat: 4
-learning_rate: 0.001
-window_size: 1024
-stride: 512
+dataloader: 
+  batch_size: 32
+  num_workers: 0  
+  window_size: 1024
+  stride: 512
 
-checkpoint_path: '/Checkpoint/80%accuracy.ckpt'
+module:
+  loss: "BCELoss" # BCELoss | CrossEntropyLoss | MSELoss | FocalLoss
+  learning_rate: 0.001  # Suggestion: 0.005 for MLP, 0.001 for LSTM 
+  weight_decay: 0 # Suggestion: 0.001 for MLP, 0 for LSTM
+  scheduler:  1 # Suggestion: 1 for MLP, None for LSTM
+
+trainer: 
+  epochs: 100
+  early_stopping:
+    patience: 10
+    monitor: "val_loss" # val_loss | val_accuracy
+  checkpoint:
+    monitor: "val_accuracy" # val_loss | val_accuracy
+    mode: "max" # min | max
+
+# checkpoint_path: 'Checkpoint/weights=epoch=06-val_loss=0.32-val_accuracy=0.81.ckpt'

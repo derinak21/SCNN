@@ -3,6 +3,7 @@ from torch import nn
 import torch.optim as optim
 import pytorch_lightning as pl
 
+
 class LSTM(nn.Module):
     def __init__(self):
         super(LSTM, self).__init__()
@@ -10,27 +11,49 @@ class LSTM(nn.Module):
         self.fc1 = nn.Linear(64, 32)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(32, 3)
-        self.st= nn.Softmax()
-        # self.bn = nn.BatchNorm1d(3)  # Batch normalization after the linear layer
-        # self.dropout = nn.Dropout(0.4)
+        self.st= nn.Softmax(dim=1)
         self.apply(lambda m: setattr(m, "dtype", torch.float32))
 
     def forward(self, x):
         x = x.to(torch.float32)
         out, _ = self.lstm(x)
-        out = self.fc1(torch.mean(out, dim=1))   # Take the last time step's output
+        out = self.fc1(torch.mean(out, dim=1))   # Take the last time step's output: out = self.fc1(out[:, -1, :]) 
         out = self.relu(out)
         out = self.fc2(out)
         out = self.st(out)
-        # out = self.bn(out)
-        # out = self.dropout(out)
         return out
+    
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
 
+    def forward(self, inputs, targets):
+        ce_loss = nn.functional.binary_cross_entropy(inputs, targets, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss *10
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        else:
+            return focal_loss
 class LSTMModule(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, loss, weight_decay, learning_rate, scheduler):
         super(LSTMModule, self).__init__()
         self.model = LSTM()
-        self.loss = nn.BCELoss()
+        lossdict={
+            'BCELoss': nn.BCELoss(),
+            'MSELoss': nn.MSELoss(),
+            'CrossEntropyLoss': nn.CrossEntropyLoss(),
+            'FocalLoss': FocalLoss(alpha=0.5, gamma=2, reduction='mean'),
+        }
+        self.loss=lossdict[loss]
+        self.learning_rate=learning_rate
+        self.weight_decay=weight_decay
+        self.scheduler=scheduler
 
     def forward(self, x):
         return self.model(x)
@@ -68,69 +91,12 @@ class LSTMModule(pl.LightningModule):
         self.log('test_accuracy', accuracy, prog_bar=True)
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=0.001)
-        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)  # Learning rate scheduler
-        return optimizer
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        if self.scheduler is None:
+            return optimizer
+        else:
+            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9)  # Learning rate scheduler
+            return [optimizer], [scheduler]
 
 
-# import torch
-# from torch import nn
-# import torch.optim as optim
-# import pytorch_lightning as pl
 
-
-# class LSTM(nn.Module):
-#     def __init__(self):
-#         super(LSTM, self).__init__()
-#         self.lstm = nn.LSTM(512, 64, batch_first=True)
-#         self.fc1 = nn.Linear(64, 16)
-#         self.relu = nn.ReLU()
-#         self.fc2 = nn.Linear(16, 4)
-
-#     def forward(self, x):
-#         x=x.to(torch.float32)
-#         #convert h0 to torch.float32
-        
-#         out, _ = self.lstm(x)
-#         out = self.fc1(out[:, -1, :])  # Take the last time step's output
-#         out = self.relu(out)
-#         out = self.fc2(out)
-#         return out
-    
-# class LSTMModule(pl.LightningModule):
-#     def __init__(self):
-#         super(LSTMModule, self).__init__()
-#         self.model=LSTM()
-#         self.loss=nn.CrossEntropyLoss()
-
-#     def forward(self, x):
-#         return self.model(x)
-
-#     def training_step(self, batch, batch_idx):
-#         x, y = batch 
-#         y_hat = self(x)
-#         loss = self.loss(y_hat, y)
-#         self.log('train_loss', loss, prog_bar=True)
-#         return loss
-    
-#     def validation_step(self, batch, batch_idx):
-#         x, y = batch
-#         y_hat = self(x)
-#         loss = self.loss(y_hat, y)
-#         self.log('val_loss', loss, prog_bar=True)
-
-#     def test_step(self, batch, batch_idx):
-#         x, y = batch
-#         y_hat = self(x)
-#         loss = self.loss(y_hat, y)
-#         self.log('test_loss', loss, prog_bar=True)
-
-#         predicted_classes = torch.argmax(y_hat, dim=1)
-#         targets= torch.argmax(y, dim=1)
-#         correct_predictions = (predicted_classes == targets).float()
-#         accuracy = correct_predictions.mean()
-#         self.log('test_accuracy', accuracy, prog_bar=True)
-
-#     def configure_optimizers(self):
-#         optimizer = optim.Adam(self.parameters(), lr=0.05)
-#         return optimizer

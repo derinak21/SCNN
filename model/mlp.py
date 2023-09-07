@@ -27,21 +27,19 @@ class MLP(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 16), 
             nn.ReLU(),  
-            nn.Dropout(),
+            nn.Dropout(0.2),
             nn.Linear(16, 3),
             nn.Softmax(dim=1)
         )   
-        # for layer in self.layers:
-        #     if isinstance(layer, nn.Linear):
-        #         # init.xavier_normal_(layer.weight)
-        #         # init.kaiming_uniform_(layer.weight, mode='fan_in', nonlinearity='relu')
-        #         init.orthogonal_(layer.weight)
-        #         if layer.bias is not None:
-        #             init.constant_(layer.bias, 0.0)
+
     def forward(self, x):
         x=x.to(torch.float32)
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                num_neurons = layer.in_features
+                print(f"Number of neurons in layer: {num_neurons}")
         return self.layers(x)
-
+        
 #Define the lightning module using MLP model
 class FocalLoss(nn.Module):
     def __init__(self, alpha=1, gamma=2, reduction='mean'):
@@ -54,7 +52,6 @@ class FocalLoss(nn.Module):
         ce_loss = nn.functional.binary_cross_entropy(inputs, targets, reduction='none')
         pt = torch.exp(-ce_loss)
         focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss *10
-
         if self.reduction == 'mean':
             return focal_loss.mean()
         elif self.reduction == 'sum':
@@ -63,12 +60,20 @@ class FocalLoss(nn.Module):
             return focal_loss
         
 class MLPModule(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, loss, weight_decay, learning_rate, scheduler):
         super(MLPModule, self).__init__()
         self.model=MLP()
-        self.loss=nn.BCELoss()
-        # self.loss=FocalLoss(alpha=0.5, gamma=2, reduction='mean')
-        # self.loss=nn.HingeEmbeddingLoss()
+        lossdict={
+            'BCELoss': nn.BCELoss(),
+            'MSELoss': nn.MSELoss(),
+            'CrossEntropyLoss': nn.CrossEntropyLoss(),
+            'FocalLoss': FocalLoss(alpha=0.5, gamma=2, reduction='mean'),
+        }
+        self.loss=lossdict[loss]
+        self.learning_rate=learning_rate
+        self.weight_decay=weight_decay
+        self.scheduler=scheduler
+
     def forward(self, x):
         return self.model(x)
 
@@ -85,11 +90,9 @@ class MLPModule(pl.LightningModule):
         loss = self.loss(y_hat, y.float())
         predicted_classes = torch.argmax(y_hat, dim=1)
         targets= torch.argmax(y, dim=1)
-
         correct_predictions = (predicted_classes==targets).float()
         accuracy = correct_predictions.mean()
         self.log('val_accuracy', accuracy, prog_bar=True)
-
         self.log('val_loss', loss, prog_bar=True)
 
     def test_step(self, batch, batch_idx):
@@ -97,20 +100,19 @@ class MLPModule(pl.LightningModule):
         y_hat = self(x)
         loss = self.loss(y_hat, y.float())
         self.log('test_loss', loss, prog_bar=True)
-
         predicted_classes = torch.argmax(y_hat, dim=1)
         targets= torch.argmax(y, dim=1)
-
         correct_predictions = (predicted_classes==targets).float()
         accuracy = correct_predictions.mean()
-
-        # accuracy= custom_accuracy(torch.round(prediction), y.float())
         self.log('test_accuracy', accuracy, prog_bar=True)
     
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=0.005, weight_decay=0.001)
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9)  # Learning rate scheduler
-
-        return [optimizer], [scheduler]
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        if self.scheduler is None:
+            return optimizer
+        else:
+            print("scheduled")
+            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9) 
+            return [optimizer], [scheduler]
 
 

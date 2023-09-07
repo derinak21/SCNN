@@ -44,7 +44,7 @@ def gcc_phat(signal1, signal2, abs=True, ifft=True, n_dft_bins=None):
     signal2_dft = np.fft.rfft(signal2, n=n_dft_bins)
 
     gcc_ij = signal1_dft * np.conj(signal2_dft)
-    gcc_phat_ij = gcc_ij / np.abs(gcc_ij)
+    gcc_phat_ij = gcc_ij / (np.abs(gcc_ij)+1e-10)
 
     if ifft:
         gcc_phat_ij = np.fft.irfft(gcc_phat_ij)
@@ -58,76 +58,92 @@ def gcc_phat(signal1, signal2, abs=True, ifft=True, n_dft_bins=None):
 
 import matplotlib.pyplot as plt
 
-def cross_correlation(signal1, signal2, sr, plot_peaks=False, n_central_bins=64, output_path=""):
-    signals=[]
-    signals.append(signal1)
-    signals.append(signal2)
-    signals= np.stack(signals).transpose(0, 1)
+def cross_correlation(signals, sr, plot_peaks=False, n_central_bins=64, output_path=""):
+    if isinstance(signals, str):
+        if os.path.isfile(signals):
+            signals, sr = sf.read(signals)
+        elif os.path.isdir(signals):
+            signals_dir = signals
+            signals = []
+            for file in os.listdir(signals_dir):
+                if file.endswith(".wav"):
+                    signal, sr = sf.read(os.path.join(signals_dir, file))
+                    signals.append(signal)
+            if len(signals) == 1:
+                signals = signals[0].T
+            else:
+                signals = np.stack(signals).transpose(1, 2)
+        else:
+            raise ValueError("The path provided is neither a file nor a directory.")
+    elif not isinstance(signals, np.ndarray):
+        raise TypeError("The signals provided must be either a path to a file or a numpy array.")
+    signals= signals.T
     n_signals, n_samples = signals.shape
     if n_signals < 2:
         raise ValueError("At least two signals must be provided.")
     
     peak_counts =0
-
     for i in range(n_signals):
         for j in range(i, n_signals):
             if i == j:
                 continue
-            # Plot correlation in the first column,
             corr = gcc_phat(signals[i], signals[j], abs=True, ifft=True, n_dft_bins=None)
             threshold=max(corr)/1.2
             peaks, _ = find_peaks(corr, height=threshold)
             peak_counts += len(peaks)
     central_start = len(corr)//2
     trimmed_corr = corr[central_start-200:central_start+200]
-    plt.figure(figsize=(12, 6))
-    plt.plot(trimmed_corr)
-    plt.title("Trimmed Cross-Correlation")
-    plt.xlabel("Sample")
-    plt.ylabel("Correlation")
-    plt.tight_layout()
-    if output_path:
-        plt.savefig(output_path)
-    else:
-        plt.show()
     return trimmed_corr
 
+def preprocess_audio(dir1, output_dir):
+    # Create the output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-def preprocess_audio(dir1, dir2):
-    audio, sample_rate= sf.read(dir1)
-    audio2, sample_rate2= sf.read(dir2)
-    sample_duration=3
-    num_samples= int(len(audio)/(sample_duration*sample_rate))
-    samples=[]
-    samples2=[]
+    audio, sample_rate = sf.read(dir1)
+    sample_duration = 3
+    num_samples = int(len(audio) / (sample_duration * sample_rate))
+
+    # Iterate through samples and save them as separate WAV files
     for i in range(num_samples):
-        samples.append(audio[i*sample_rate*sample_duration:(i+1)*sample_rate*sample_duration])
-        samples2.append(audio2[i*sample_rate*sample_duration:(i+1)*sample_rate*sample_duration])
-    return samples, samples2
+        sample = audio[i * sample_rate * sample_duration : (i + 1) * sample_rate * sample_duration]
+        
+        # Define the output filename with a ".wav" extension
+        output_filename = f"sample_{i}.wav"
+        
+        # Combine the output directory path and filename
+        output_path = os.path.join(output_dir, output_filename)
+        
+        # Use sf.write to save the sample as a WAV file
+        sf.write(output_path, sample, sample_rate)
+
 
 class SourceCountingDataset(Dataset):
     def __init__(self, sample_dir):
-        self.sample_dir = "output_mic0.wav"
-        self.sample_dir2 = "output_mic1.wav"
-        self.samples1, self.samples2=preprocess_audio(self.sample_dir, self.sample_dir2)
-       
+        self.sample_dir = "recording/recording.wav"
+        self.samples= preprocess_audio(self.sample_dir, "audio")
     def __len__(self):
-        return len(self.samples1)
+        return len(os.listdir("audio"))
 
     def __getitem__(self, index):
-        signal1 = self.samples1[index]
-        signal2= self.samples2[index]
-        gcc_phat= cross_correlation(signal1, signal2, 16000, True, 64, "")
+        path= os.path.join("audio", f"sample_{index}.wav")
+        gcc_phat= cross_correlation(path, 16000, True, 64, "")
         gcc_phat_tensor = torch.tensor(gcc_phat)  # Convert to PyTorch tensor
         #Convert num sources to one hot encoding
-        num_sources = torch.tensor([0,1,0])
+        if index<=40:
+            num_sources = torch.tensor([1,0,0])
+        elif index <=80:
+            num_sources = torch.tensor([0,1,0])
+        else:
+            num_sources = torch.tensor([0,0,1])
+    
         return gcc_phat_tensor, num_sources
    
 
 
 # LOAD DATASET
 class SourceCountingDataLoader(DataLoader):
-    def __init__(self, dir, batch_size=32, shuffle=True, num_workers=5):
+    def __init__(self, dir, batch_size=32, shuffle=False, num_workers=0):
         dataset = SourceCountingDataset(dir)
         super().__init__(dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True, drop_last=False, num_workers=num_workers)
 
@@ -255,7 +271,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 @hydra.main(config_path="config", config_name="config", version_base="1.3.2")
 def test_model(cfg: DictConfig):
     mlp_model=MLPModule.load_from_checkpoint(cfg.checkpoint_path)
-    test_data_loader = SourceCountingDataLoader(cfg.test, batch_size=cfg.batch_size, num_workers=cfg.num_workers)
+    test_data_loader = SourceCountingDataLoader(cfg.test, batch_size=cfg.dataloader.batch_size, num_workers=cfg.dataloader.num_workers)
     trainer = pl.Trainer()
     trainer.test(model=mlp_model, dataloaders=test_data_loader)
     predictions= mlp_model.predictions
