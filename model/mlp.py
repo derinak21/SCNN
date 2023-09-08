@@ -34,10 +34,6 @@ class MLP(nn.Module):
 
     def forward(self, x):
         x=x.to(torch.float32)
-        for layer in self.layers:
-            if isinstance(layer, nn.Linear):
-                num_neurons = layer.in_features
-                print(f"Number of neurons in layer: {num_neurons}")
         return self.layers(x)
         
 #Define the lightning module using MLP model
@@ -73,7 +69,7 @@ class MLPModule(pl.LightningModule):
         self.learning_rate=learning_rate
         self.weight_decay=weight_decay
         self.scheduler=scheduler
-
+        self.predictions=[]
     def forward(self, x):
         return self.model(x)
 
@@ -101,6 +97,7 @@ class MLPModule(pl.LightningModule):
         loss = self.loss(y_hat, y.float())
         self.log('test_loss', loss, prog_bar=True)
         predicted_classes = torch.argmax(y_hat, dim=1)
+        self.predictions.append(predicted_classes)
         targets= torch.argmax(y, dim=1)
         correct_predictions = (predicted_classes==targets).float()
         accuracy = correct_predictions.mean()

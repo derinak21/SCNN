@@ -89,8 +89,8 @@ def cross_correlation(signals, sr, plot_peaks=False, n_central_bins=64, output_p
                 continue
             corr = gcc_phat(signals[i], signals[j], abs=True, ifft=True, n_dft_bins=None)
             threshold=max(corr)/1.2
-            if threshold<0.1:
-                threshold=0.1
+            # if threshold<0.1:
+            #     threshold=0.1
             peaks, _ = find_peaks(corr, height=threshold)
             peak_counts += len(peaks)
             is_peak=torch.zeros(len(corr))

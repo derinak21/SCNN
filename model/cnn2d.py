@@ -26,23 +26,23 @@ class FocalLoss(nn.Module):
 class CNN2D(nn.Module):
     def __init__(self):
         super(CNN2D, self).__init__()
-        self.conv1= nn.Conv2d(in_channels=4, out_channels=16, kernel_size=3, padding=1)
+        self.conv1= nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1)
         self.conv2= nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
         self.pool= nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1= nn.Linear(32*125*250, 128)
+        self.fc1= nn.Linear(90112, 128)
         self.fc2= nn.Linear(128, 3)
         self.dropout= nn.Dropout(p=0.4)
         self.softmax= nn.Softmax(dim=1)
     def forward(self, x):
         x=x.to(torch.float32)   # x.shape=[25(batch size), 500(height), 1000(width), 4(channels)]
-        x= x.permute(0, 3, 1, 2).contiguous()
+        x= x.view(x.size(0), 1, x.size(1), x.size(2))
         x= self.pool(torch.relu(self.conv1(x))) # x.shape=[25, 16, 250, 500]
         x= self.pool(torch.relu(self.conv2(x))) # x.shape=[25, 32, 125, 250]
-        x= x.view(x.size(0), -1)
+        x= x.view(x.shape[0], x.shape[1]*x.shape[2]*x.shape[3])
         x= torch.relu(self.fc1(x))
         x= self.fc2(x)
         x= self.dropout(x)
-        x= self.softmax(x)
+        # x= self.softmax(x)
         return x
     
 class CNN2DModule(pl.LightningModule):
@@ -74,7 +74,11 @@ class CNN2DModule(pl.LightningModule):
         y_hat = self(x)
         loss = self.loss(y_hat, y)
         self.log('val_loss', loss, prog_bar=True)
-
+        predicted_classes = torch.argmax(y_hat, dim=1)
+        targets = torch.argmax(y, dim=1)
+        correct_predictions = (predicted_classes == targets).float()
+        accuracy = correct_predictions.mean()
+        self.log('val_accuracy', accuracy, prog_bar=True)
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)

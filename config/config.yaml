@@ -1,9 +1,16 @@
-train : '/datasets/dataset/train/'  
-validate : '/datasets/dataset/validate/'  
-test : '/datasets/dataset/test/'  
-recorded: 'recording/recording.wav'
-model: "cnn1d"  #  mlp | lstm | cnn1d | cnn2d
-
+mode: "simulation" # simulation | recorded
+train : 'data/train/'  
+validate : 'data/validate/'  
+test : 'data/test/'  
+# recorded: 'recording/recording.wav'
+model: "mlp"  #  mlp | lstm | cnn1d | cnn2d
+#mlp, lstm, cnn1d uses GCC PHAT as input
+#cnn2d uses STFT as input
+#Suggestions:
+# 1. mlp: BCELoss, learning_rate: 0.001, weight_decay: 0, scheduler: 1
+# 2. lstm: BCELoss, learning_rate: 0.001, weight_decay: 0, scheduler: None
+# 3. cnn1d: BCELoss, learning_rate: 0.001, weight_decay: 0, scheduler: None
+# 4. cnn2d: CrossEntropyLoss, learning_rate: 0.001, weight_decay: 0, scheduler: None
 
 dataloader: 
   batch_size: 32
@@ -11,11 +18,12 @@ dataloader:
   window_size: 1024
   stride: 512
 
+
 module:
   loss: "BCELoss" # BCELoss | CrossEntropyLoss | MSELoss | FocalLoss
-  learning_rate: 0.001  # Suggestion: 0.005 for MLP, 0.001 for LSTM 
-  weight_decay: 0 # Suggestion: 0.001 for MLP, 0 for LSTM
-  scheduler:  1 # Suggestion: 1 for MLP, None for LSTM
+  learning_rate: 0.001  
+  weight_decay: 0 
+  scheduler:  None 
 
 trainer: 
   epochs: 100
@@ -26,4 +34,4 @@ trainer:
     monitor: "val_accuracy" # val_loss | val_accuracy
     mode: "max" # min | max
 
-# checkpoint_path: 'Checkpoint/weights=epoch=06-val_loss=0.32-val_accuracy=0.81.ckpt'
+checkpoint_path: 'Checkpoint/weights=epoch=21-val_loss=0.28-val_accuracy=0.81.ckpt'
