@@ -1,7 +1,7 @@
 mode: "simulation" # simulation | recorded
-train : '/datasets/fixed0/train/'  
-validate : '/datasets/fixed0/validate/'  
-test : '/datasets/fixed0/test/'  
+train : 'data/train/'  
+validate : 'data/validate/'  
+test : 'data/test/'  
 # recorded: 'recording/recording.wav'
 model: "mlp"  #  mlp | lstm | cnn1d | cnn2d
 #mlp, lstm, cnn1d uses GCC PHAT as input
