@@ -38,8 +38,9 @@ def gcc_phat(signal1, signal2, abs=True, ifft=True, n_dft_bins=None):
     signal2_dft = np.fft.rfft(signal2, n=n_dft_bins)
 
     gcc_ij = signal1_dft * np.conj(signal2_dft)
-    epsilon = 1e-10  # Small constant to avoid division by zero
-    gcc_phat_ij = gcc_ij / (np.abs(gcc_ij) + epsilon)
+    if np.abs(gcc_ij).all() == 0:
+        gcc_ij= gcc_ij +1e-9
+    gcc_phat_ij = gcc_ij / np.abs(gcc_ij)
     if ifft:
         gcc_phat_ij = np.fft.irfft(gcc_phat_ij)
         if abs:

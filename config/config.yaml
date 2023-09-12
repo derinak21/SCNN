@@ -1,7 +1,7 @@
 mode: "simulation" # simulation | recorded
-train : 'data/train/'  
-validate : 'data/validate/'  
-test : 'data/test/'  
+train : '/datasets/fixed0/train/'  
+validate : '/datasets/fixed0/validate/'  
+test : '/datasets/fixed0/test/'  
 # recorded: 'recording/recording.wav'
 model: "mlp"  #  mlp | lstm | cnn1d | cnn2d
 #mlp, lstm, cnn1d uses GCC PHAT as input
@@ -9,7 +9,7 @@ model: "mlp"  #  mlp | lstm | cnn1d | cnn2d
 #Suggestions:
 # 1. mlp: BCELoss, learning_rate: 0.001, weight_decay: 0, scheduler: 1
 # 2. lstm: BCELoss, learning_rate: 0.001, weight_decay: 0, scheduler: None
-# 3. cnn1d: BCELoss, learning_rate: 0.001, weight_decay: 0, scheduler: None
+# 3. cnn1d: CrossEntropyLoss, learning_rate: 0.001, weight_decay: 0, scheduler: None
 # 4. cnn2d: CrossEntropyLoss, learning_rate: 0.001, weight_decay: 0, scheduler: None
 
 dataloader: 
@@ -22,7 +22,7 @@ dataloader:
 module:
   loss: "BCELoss" # BCELoss | CrossEntropyLoss | MSELoss | FocalLoss
   learning_rate: 0.001  
-  weight_decay: 0 
+  weight_decay: 0.001 
   scheduler:  None 
 
 trainer: 

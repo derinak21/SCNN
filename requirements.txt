@@ -1,0 +1,8 @@
+pytorch_lightning
+torch
+hydra-core
+numpy
+matplotlib
+soundfile
+scipy
+scikit-learn

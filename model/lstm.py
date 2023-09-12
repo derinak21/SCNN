@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import torch.optim as optim
 import pytorch_lightning as pl
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
 class LSTM(nn.Module):
@@ -87,9 +88,14 @@ class LSTMModule(pl.LightningModule):
         targets = torch.argmax(y, dim=1)
         correct_predictions = (predicted_classes == targets).float()
         accuracy = correct_predictions.mean()
-        
         self.log('test_accuracy', accuracy, prog_bar=True)
-
+        precision = precision_score(targets.cpu(), predicted_classes.cpu(), average='macro')
+        recall = recall_score(targets.cpu(), predicted_classes.cpu(), average='macro')
+        f1 = f1_score(targets.cpu(), predicted_classes.cpu(), average='macro')
+        self.log('test_precision', precision, prog_bar=True)
+        self.log('test_recall', recall, prog_bar=True)
+        self.log('test_f1', f1, prog_bar=True)
+        
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         if self.scheduler is None:

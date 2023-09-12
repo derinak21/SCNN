@@ -15,6 +15,7 @@ class CNN1D(nn.Module):
         self.fc2= nn.Linear(128, 3)
         self.dropout= nn.Dropout(p=0.4)
         self.softmax= nn.Softmax(dim=1)
+
     def forward(self, x):
         x=x.to(torch.float32) 
         x= self.pool(torch.relu(self.conv1(x))) 
@@ -90,7 +91,6 @@ class CNN1DModule(pl.LightningModule):
         correct_predictions = (predicted_classes == targets).float()
         accuracy = correct_predictions.mean()
         self.log('test_accuracy', accuracy, prog_bar=True)
-        # calculate precision, recall, and f1 score
         precision = precision_score(targets.cpu(), predicted_classes.cpu(), average='macro')
         recall = recall_score(targets.cpu(), predicted_classes.cpu(), average='macro')
         f1 = f1_score(targets.cpu(), predicted_classes.cpu(), average='macro')
